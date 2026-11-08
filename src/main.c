@@ -317,14 +317,9 @@ static int open_audio(const char *path, int writing, session *state)
     return fd;
 }
 /* Return 0 for EOF, a positive byte count for a complete/last block, -1 error. */
-static int read_audio(int fd, unsigned char *data, size_t capacity, session *state, int *seen)
+static int read_audio(int fd, unsigned char *data, size_t capacity, session *state)
 {
     size_t used = 0;
-#ifndef _WIN32
-    struct stat info;
-    int fifo = strcmp(state->options->input, "-") != 0 &&
-               fstat(fd, &info) == 0 && S_ISFIFO(info.st_mode);
-#endif
     while (used < capacity && !interrupted) {
         int count;
         service(state);
@@ -345,12 +340,10 @@ static int read_audio(int fd, unsigned char *data, size_t capacity, session *sta
             perror("audio read"); return -1;
         }
         if (!count) {
-#ifndef _WIN32
-            if (fifo && !*seen && !used) { sleep_ms(10); continue; }
-#endif
+            /* Linux poll waits before the first writer connects and reports
+             * POLLHUP after it closes, including a writer that sent no data. */
             break;
         }
-        *seen = 1;
         used += (size_t)count;
     }
     if (interrupted) return 0;
@@ -382,7 +375,7 @@ int main(int argc, char **argv)
     spatial_bank bank;
     unsigned char bytes[SPATIAL_BLOCK_FRAMES * 4];
     int16_t input[SPATIAL_BLOCK_FRAMES * 2], output[SPATIAL_BLOCK_FRAMES * 2];
-    int input_fd = -1, output_fd = -1, seen = 0, result = 0, parsed;
+    int input_fd = -1, output_fd = -1, result = 0, parsed;
     FILE *stats = NULL;
     char error[512] = "Backend initialization failed";
     double start;
@@ -431,7 +424,7 @@ int main(int argc, char **argv)
             bank.synthetic ? "SYNTHETIC_TEST_NOT_MEASURED_HRIR" : "IMPORTED_COEFFICIENTS", option.rate, bank.taps);
     start = clock_us();
     while (!interrupted && state.blocks < option.max_blocks) {
-        int count = read_audio(input_fd, bytes, sizeof(bytes), &state, &seen);
+        int count = read_audio(input_fd, bytes, sizeof(bytes), &state);
         size_t frames, i;
         double before, deadline;
         spatial_mode block_mode;

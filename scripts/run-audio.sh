@@ -30,7 +30,6 @@ for executable in arecord aplay; do command -v "$executable" >/dev/null 2>&1 || 
 if [ -z "$runtime" ]; then runtime=$(mktemp -d /tmp/dm8168-audio.XXXXXX); else mkdir -m 700 -p -- "$runtime"; fi
 runtime=$(CDPATH= cd -- "$runtime" && pwd -P)
 mkdir -- "$runtime/session.lock" || { printf 'Runtime directory has an active session lock\n' >&2; exit 2; }
-mkdir -p -- "$project/results/board"
 capture_pid= playback_pid= backend_pid=
 capture_fifo_created=0
 playback_fifo_created=0
@@ -50,6 +49,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+mkdir -p -- "$project/results/board"
 mkfifo -m 600 -- "$runtime/capture.fifo"
 capture_fifo_created=1
 mkfifo -m 600 -- "$runtime/playback.fifo"

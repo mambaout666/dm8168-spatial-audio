@@ -191,6 +191,26 @@ class BackendTests(unittest.TestCase):
                 self.fail("backend did not create FIFO")
             time.sleep(0.01)
 
+    @unittest.skipIf(os.name == "nt", "Linux FIFO EOF")
+    def test_empty_named_fifo_terminates_after_writer_closes(self):
+        fifo = self.path / "empty.fifo"
+        os.mkfifo(str(fifo), 0o600)
+        process = subprocess.Popen(self.command("--input", fifo), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.addCleanup(self.stop_process, process)
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                fd = os.open(str(fifo), os.O_WRONLY | os.O_NONBLOCK)
+                os.close(fd)
+                break
+            except OSError:
+                if process.poll() is not None or time.monotonic() > deadline:
+                    self.fail("backend did not open the empty input FIFO")
+                time.sleep(0.01)
+        _, error = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 0, error)
+        self.assertEqual(self.output.read_bytes(), b"")
+
     @unittest.skipIf(os.name == "nt", "Linux FIFO behavior")
     def test_control_is_nonblocking_and_mute_direction_bypass_reach_csv(self):
         write_raw_pcm(self.source, self.samples * 30)
