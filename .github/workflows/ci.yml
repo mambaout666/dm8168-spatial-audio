@@ -22,6 +22,11 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Generate synthetic CPU demo
         run: python tools/demo.py --output-dir results/demo
+      - name: Check legacy Makefile and shell entry points
+        run: |
+          make BUILD=build/make test
+          sh -n scripts/inspect-environment.sh
+          sh -n scripts/run-audio.sh
       - name: Preserve CPU demo and measurements
         uses: actions/upload-artifact@v4
         with:

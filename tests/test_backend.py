@@ -135,7 +135,7 @@ class BackendTests(unittest.TestCase):
     def test_rpe_unavailable_is_explicit_without_cpu_fallback(self):
         run = subprocess.run(self.command("--backend", "rpe"), capture_output=True, timeout=15)
         self.assertNotEqual(run.returncode, 0)
-        self.assertIn(b"RPE", run.stderr)
+        self.assertIn(b"rpe", run.stderr.lower())
         self.assertFalse(self.output.exists())
 
     def test_invalid_cli_arguments(self):
@@ -224,6 +224,27 @@ class BackendTests(unittest.TestCase):
         run = subprocess.run(self.command("--runtime-dir", runtime), capture_output=True, timeout=15)
         self.assertNotEqual(run.returncode, 0)
         self.assertEqual(control.read_text(), "keep me")
+
+    @unittest.skipIf(os.name == "nt", "Linux FIFO backpressure")
+    def test_stalled_preview_reader_does_not_stall_audio(self):
+        import fcntl
+        write_raw_pcm(self.source, self.samples * 30)
+        runtime = self.path / "runtime"
+        process = subprocess.Popen(self.command("--runtime-dir", runtime, "--pace"),
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.addCleanup(self.stop_process, process)
+        self.await_path(runtime / "telemetry.fifo", process)
+        reader = os.open(str(runtime / "telemetry.fifo"), os.O_RDONLY | os.O_NONBLOCK)
+        try:
+            fcntl.fcntl(reader, fcntl.F_SETPIPE_SZ, 4096)
+            # Deliberately never drain previews; the main audio stream must end.
+            _, error = process.communicate(timeout=15)
+        finally:
+            os.close(reader)
+        self.assertEqual(process.returncode, 0, error)
+        self.assertEqual(self.output.stat().st_size, self.source.stat().st_size)
+        drops = int(error.rsplit(b"visual_drops=", 1)[1].split()[0])
+        self.assertGreater(drops, 1)
 
     @unittest.skipIf(os.name == "nt", "POSIX plugin loader")
     def test_plugin_abi_uses_copy_fixture_not_a_hardware_claim(self):
