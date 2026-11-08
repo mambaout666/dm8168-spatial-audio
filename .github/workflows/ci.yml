@@ -1,0 +1,61 @@
+name: Portable prototype checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build and run sanitized C tests
+        run: python tools/build.py --test --sanitize
+      - name: Run Python reference and backend integration tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Generate synthetic CPU demo
+        run: python tools/demo.py --output-dir results/demo
+      - name: Preserve CPU demo and measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-cpu-demo
+          path: results/demo/
+      - name: Install Qt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qtbase5-dev
+      - name: Build Qt control application
+        run: |
+          mkdir -p build/qt
+          cd build/qt
+          qmake ../../qt/spatial-audio.pro
+          make -j2
+      - name: Render and smoke-test Qt offscreen startup
+        run: |
+          QT_QPA_PLATFORM=offscreen timeout 10 ./build/qt/dm8168-audio-qt --screenshot build/qt/disconnected.png --quit-after-ms 300
+      - name: Preserve Qt visual preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-preview
+          path: build/qt/disconnected.png
+          if-no-files-found: error
+  arm-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install generic ARM EABI cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabi
+      - name: Cross-build only (does not verify EZSDK ABI or hardware)
+        run: python tools/build.py --cc arm-linux-gnueabi-gcc --build-dir build/arm
