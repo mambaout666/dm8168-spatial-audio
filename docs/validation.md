@@ -4,6 +4,22 @@
 
 不要把主机CPU速度、合成系数听感或普通主机上的DSP-wrapper单测记为DM8168的DSP性能结果。
 
+## v0.1 已执行的主机验证
+
+代码提交 `a420dfa` 的 [GitHub Actions 运行记录](https://github.com/mambaout666/dm8168-spatial-audio/actions/runs/42485910376) 已成功完成以下检查：
+
+| 环境与检查 | 实际结果 |
+| --- | --- |
+| Windows / Zig：C 核心、DSP包装层主机测试 | 通过 |
+| Windows / Python：42项测试 | 36项通过，6项Linux专用测试跳过 |
+| Linux：ASan/UBSan下C测试与42项Python测试 | 全部通过，包含空FIFO结束和预览背压场景 |
+| Linux：Makefile构建与shell入口语法检查 | 通过 |
+| Linux：Qt5构建、offscreen启动与PNG截图 | 通过，截图已人工检查 |
+| 通用ARM EABI交叉编译 | 通过，仅编译验证 |
+| 原创合成音频：两个方向分别与独立参考比较 | 逐样本一致，静音输出全零 |
+
+上述检查不覆盖课程Qt4工具链、实际EZSDK运行库兼容性、真实RPE调用、硬件实时性或听感验收。
+
 ## 主机自动验证
 
 在项目根目录、具备C编译器和Python 3.8或更新版本的主机执行：

@@ -1,5 +1,7 @@
 # DM8168 Spatial Audio
 
+[![Portable prototype checks](https://github.com/mambaout666/dm8168-spatial-audio/actions/workflows/ci.yml/badge.svg)](https://github.com/mambaout666/dm8168-spatial-audio/actions/workflows/ci.yml)
+
 基于课程 EZSDK、RPE 和 Qt 路线的双耳空间音频实验项目。
 
 **v0.1 是可运行的 CPU 原型与板端接入基础**：包含连续 Q15 双耳 FIR、方向切换、文件/FIFO 后端、独立 Qt 客户端、HRIR 导入工具和分段测试。真实 TI RPE 绑定及开发板上的听感、实时性和 30 分钟稳定性验证尚未完成。
@@ -99,6 +101,10 @@ make
 板上 Qt4 额外加 `-qws`；Qt5 根据已配置环境选择 `-platform linuxfb`，不要混用两套部署方式。GUI 提供恢复/静音输出、方向 A/B、旁路、波形预览与状态。静音保留音频流，结束启动脚本才释放 ALSA 设备。
 
 当前缺少显示器时，先完成文件与音频后端阶段；板上 Qt 演示需要外接显示器，常见笔记本 HDMI 接口是输出端。
+
+下面是 GitHub Actions 实际构建运行生成的 Qt5/Linux 界面，展示未连接后端时的状态，板端显示仍需单独验证。
+
+![Qt client disconnected state](docs/images/qt-preview.png)
 
 ## RPE 接入状态
 
